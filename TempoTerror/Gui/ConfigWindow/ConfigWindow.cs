@@ -14,13 +14,15 @@ public sealed class ConfigWindow : Window, IDisposable
     private readonly Configuration config;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly ActionTracker tracker;
+    private readonly IDataSource dataSource;
 
-    public ConfigWindow(Configuration config, IDalamudPluginInterface pluginInterface, ActionTracker tracker)
+    public ConfigWindow(Configuration config, IDalamudPluginInterface pluginInterface, ActionTracker tracker, IDataSource dataSource)
         : base("TempoTerror Settings##ConfigWindow")
     {
         this.config = config;
         this.pluginInterface = pluginInterface;
         this.tracker = tracker;
+        this.dataSource = dataSource;
 
         this.SizeConstraints = new WindowSizeConstraints
         {
@@ -68,26 +70,24 @@ public sealed class ConfigWindow : Window, IDisposable
 
         if (ImGui.CollapsingHeader("Data Source", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            var mode = (int)this.config.DataSourceMode;
-            if (ImGui.Combo("Connection Mode", ref mode, "IPC (in-process)\0WebSocket\0"))
-            {
-                this.config.DataSourceMode = (Models.DataSourceMode)mode;
-                changed = true;
-            }
+            ImGui.TextColored(
+                this.dataSource.IsConnected
+                    ? new Vector4(0.4f, 1.0f, 0.4f, 1.0f)
+                    : new Vector4(1.0f, 0.4f, 0.4f, 1.0f),
+                this.dataSource.ConnectionStatus);
 
-            if (this.config.DataSourceMode == Models.DataSourceMode.WebSocket)
+            ImGui.Spacing();
+
+            var url = this.config.WebSocketUrl;
+            if (ImGui.InputText("WebSocket Fallback URL", ref url, 256))
             {
-                var url = this.config.WebSocketUrl;
-                if (ImGui.InputText("WebSocket URL", ref url, 256))
-                {
-                    this.config.WebSocketUrl = url;
-                    changed = true;
-                }
+                this.config.WebSocketUrl = url;
+                changed = true;
             }
 
             ImGui.TextColored(
                 new Vector4(0.7f, 0.7f, 0.7f, 1.0f),
-                "Changes take effect after plugin reload.");
+                "Tries IPC first, then falls back to WebSocket.");
         }
 
         if (ImGui.CollapsingHeader("Timeline", ImGuiTreeNodeFlags.DefaultOpen))

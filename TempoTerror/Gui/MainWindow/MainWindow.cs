@@ -16,6 +16,7 @@ public sealed class MainWindow : Window, IDisposable
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly ActionTracker tracker;
     private readonly IconCache iconCache;
+    private readonly IDataSource dataSource;
     private readonly Window configWindow;
     private readonly TitleBarButton lockButton;
 
@@ -28,13 +29,14 @@ public sealed class MainWindow : Window, IDisposable
     private double axisYMin;
     private double axisYMax;
 
-    public MainWindow(Configuration config, IDalamudPluginInterface pluginInterface, ActionTracker tracker, IconCache iconCache, Window configWindow)
+    public MainWindow(Configuration config, IDalamudPluginInterface pluginInterface, ActionTracker tracker, IconCache iconCache, IDataSource dataSource, Window configWindow)
         : base("TempoTerror##MainWindow")
     {
         this.config = config;
         this.pluginInterface = pluginInterface;
         this.tracker = tracker;
         this.iconCache = iconCache;
+        this.dataSource = dataSource;
         this.configWindow = configWindow;
 
         this.SizeConstraints = new WindowSizeConstraints
@@ -93,6 +95,20 @@ public sealed class MainWindow : Window, IDisposable
         if (this.config.ShowDebugInfo)
             this.DrawDebugInfo();
 #endif
+
+        if (!this.dataSource.IsConnected)
+        {
+            var drawList = ImGui.GetBackgroundDrawList();
+            var pos = ImGui.GetWindowPos();
+            var size = ImGui.GetWindowSize();
+            drawList.AddRectFilled(pos, pos + size, ImGui.GetColorU32(new Vector4(0f, 0f, 0f, 1f)));
+
+            ImGui.TextDisabled("Not connected. Make sure IINACT is running.");
+            ImGui.TextDisabled(this.dataSource.ConnectionStatus);
+            this.DrawContextMenu();
+            return;
+        }
+
         this.DrawTimeline();
     }
 
@@ -233,6 +249,13 @@ public sealed class MainWindow : Window, IDisposable
 
         drawList.PopClipRect();
 
+        this.DrawContextMenu();
+
+        ImGui.EndChild();
+    }
+
+    private void DrawContextMenu()
+    {
         if (ImGui.BeginPopupContextWindow("##TimelineContext"))
         {
             var lockLabel = this.config.PinMainWindow ? "Unlock Window" : "Lock Window";
@@ -248,8 +271,6 @@ public sealed class MainWindow : Window, IDisposable
 
             ImGui.EndPopup();
         }
-
-        ImGui.EndChild();
     }
 
     private void DrawGridLines(ImDrawListPtr drawList, double xMin, double xMax, float displayTime)

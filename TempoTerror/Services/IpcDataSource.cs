@@ -20,6 +20,8 @@ public sealed class IpcDataSource : IDataSource
 
     public bool IsConnected => this.connected;
 
+    public string ConnectionStatus { get; private set; } = "Not connected";
+
     public IpcDataSource(IDalamudPluginInterface pluginInterface, IPluginLog log)
     {
         this.log = log;
@@ -66,6 +68,7 @@ public sealed class IpcDataSource : IDataSource
             };
             this.sender.InvokeFunc(subscribeMsg);
             this.connected = true;
+            this.ConnectionStatus = "Connected (IPC)";
 
             this.log.Information("[TempoTerror] IINACT subscription active.");
         }
@@ -73,6 +76,7 @@ public sealed class IpcDataSource : IDataSource
         {
             this.log.Debug("[TempoTerror] IINACT not ready yet: {Message}", ex.Message);
             this.connected = false;
+            this.ConnectionStatus = "IPC unavailable";
         }
     }
 

@@ -8,5 +8,7 @@ public interface IDataSource : IDisposable
 
     bool IsConnected { get; }
 
+    string ConnectionStatus { get; }
+
     void Connect();
 }

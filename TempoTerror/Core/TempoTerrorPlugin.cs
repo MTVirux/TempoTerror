@@ -5,7 +5,6 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using TempoTerror.Models;
 using TempoTerror.Services;
 
 public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
@@ -50,18 +49,14 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         this.config = cfg;
 
         // Services
-        this.dataSource = this.config.DataSourceMode switch
-        {
-            DataSourceMode.WebSocket => new WebSocketDataSource(this.config.WebSocketUrl, log),
-            _ => new IpcDataSource(pluginInterface, log),
-        };
+        this.dataSource = new AutoDataSource(pluginInterface, this.config.WebSocketUrl, log);
         this.actionTracker = new ActionTracker(objectTable, dataManager, log, this.dataSource);
         this.iconCache = new IconCache(textureProvider, dataManager);
 
         // Windows
         this.windowSystem = new WindowSystem("TempoTerror");
-        this.configWindow = new Gui.ConfigWindow.ConfigWindow(this.config, pluginInterface, this.actionTracker);
-        this.mainWindow = new Gui.MainWindow.MainWindow(this.config, pluginInterface, this.actionTracker, this.iconCache, this.configWindow);
+        this.configWindow = new Gui.ConfigWindow.ConfigWindow(this.config, pluginInterface, this.actionTracker, this.dataSource);
+        this.mainWindow = new Gui.MainWindow.MainWindow(this.config, pluginInterface, this.actionTracker, this.iconCache, this.dataSource, this.configWindow);
 
         this.windowSystem.AddWindow(this.mainWindow);
         this.windowSystem.AddWindow(this.configWindow);

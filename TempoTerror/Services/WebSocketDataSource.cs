@@ -22,6 +22,8 @@ public sealed class WebSocketDataSource : IDataSource
 
     public bool IsConnected => this.ws?.State == WebSocketState.Open;
 
+    public string ConnectionStatus { get; private set; } = "Not connected";
+
     public WebSocketDataSource(string url, IPluginLog log)
     {
         this.url = url;
@@ -85,12 +87,14 @@ public sealed class WebSocketDataSource : IDataSource
             catch (Exception ex)
             {
                 this.log.Debug("[TempoTerror] WebSocket error: {Message}", ex.Message);
+                this.ConnectionStatus = "WebSocket error";
             }
 
             if (ct.IsCancellationRequested || this.disposed)
                 break;
 
             this.log.Debug("[TempoTerror] WebSocket reconnecting in {Delay}ms...", retryDelay);
+            this.ConnectionStatus = "WebSocket reconnecting...";
 
             try
             {
@@ -112,6 +116,7 @@ public sealed class WebSocketDataSource : IDataSource
 
         await this.ws.ConnectAsync(new Uri(this.url), ct).ConfigureAwait(false);
         this.log.Information("[TempoTerror] WebSocket connected to {Url}", this.url);
+        this.ConnectionStatus = "Connected (WebSocket)";
 
         var subscribeMsg = JsonConvert.SerializeObject(new
         {
