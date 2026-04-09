@@ -1,7 +1,9 @@
 namespace TempoTerror;
 
+using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Configuration;
+using TempoTerror.Models;
 
 public sealed class Configuration : IPluginConfiguration
 {
@@ -32,4 +34,14 @@ public sealed class Configuration : IPluginConfiguration
     public bool ShowOnStart { get; set; } = true;
 
     public uint? SelectedPlayerId { get; set; }
+
+    public List<ActionType> RowOrder { get; set; } = [ActionType.AutoAttack, ActionType.Gcd, ActionType.Ogcd, ActionType.Pet];
+
+    public Dictionary<ActionType, float> RowHeights { get; set; } = new()
+    {
+        { ActionType.AutoAttack, 1.0f },
+        { ActionType.Gcd, 1.0f },
+        { ActionType.Ogcd, 1.0f },
+        { ActionType.Pet, 1.0f },
+    };
 }

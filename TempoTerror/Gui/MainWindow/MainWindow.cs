@@ -80,6 +80,30 @@ public sealed class MainWindow : Window, IDisposable
 
         var iconSize = ConfigStatic.DefaultIconSize * this.config.IconScale;
 
+        // Build row layout from config
+        var rowOrder = this.config.RowOrder;
+        var visibleRows = new List<(ActionType Type, string Label)>();
+        foreach (var type in rowOrder)
+        {
+            if (this.ShouldShow(type))
+                visibleRows.Add((type, GetRowLabel(type)));
+        }
+
+        if (visibleRows.Count == 0)
+            return;
+
+        // Compute cumulative Y positions based on row heights
+        var rowPositions = new Dictionary<ActionType, double>();
+        var y = 0.0;
+        foreach (var (type, _) in visibleRows)
+        {
+            var height = this.config.RowHeights.TryGetValue(type, out var h) ? h : 1.0f;
+            rowPositions[type] = y + height * 0.5;
+            y += height;
+        }
+
+        var totalHeight = y;
+
         if (!ImPlot.BeginPlot("##Timeline", new Vector2(-1, -1), ImPlotFlags.NoLegend | ImPlotFlags.NoMouseText))
             return;
 
@@ -88,22 +112,33 @@ public sealed class MainWindow : Window, IDisposable
             ImPlotAxisFlags.NoTickLabels | ImPlotAxisFlags.NoGridLines | ImPlotAxisFlags.Invert);
 
         ImPlot.SetupAxisLimits(ImAxis.X1, xMin, xMax, ImPlotCond.Always);
-        ImPlot.SetupAxisLimits(ImAxis.Y1, -0.5, 3.5, ImPlotCond.Always);
+        ImPlot.SetupAxisLimits(ImAxis.Y1, -0.25, totalHeight + 0.25, ImPlotCond.Always);
 
         // Row labels
-        ImPlot.PlotText("Auto", xMin + displayTime * 0.02, 0);
-        ImPlot.PlotText("GCD", xMin + displayTime * 0.02, 1);
-        ImPlot.PlotText("oGCD", xMin + displayTime * 0.02, 2);
-        ImPlot.PlotText("Pet", xMin + displayTime * 0.02, 3);
+        foreach (var (type, label) in visibleRows)
+        {
+            ImPlot.PlotText(label, xMin + displayTime * 0.02, rowPositions[type]);
+        }
 
         // Draw horizontal row separators
         var drawList = ImPlot.GetPlotDrawList();
         var separatorColor = ImGui.GetColorU32(new Vector4(0.3f, 0.3f, 0.3f, 0.5f));
 
-        for (var row = 0; row < 4; row++)
+        var sepY = 0.0;
+        for (var i = 0; i < visibleRows.Count; i++)
         {
-            var leftPx = ImPlot.PlotToPixels(xMin, row - 0.5);
-            var rightPx = ImPlot.PlotToPixels(xMax, row - 0.5);
+            var leftPx = ImPlot.PlotToPixels(xMin, sepY);
+            var rightPx = ImPlot.PlotToPixels(xMax, sepY);
+            drawList.AddLine(leftPx, rightPx, separatorColor);
+
+            var height = this.config.RowHeights.TryGetValue(visibleRows[i].Type, out var h) ? h : 1.0f;
+            sepY += height;
+        }
+
+        // Bottom separator
+        {
+            var leftPx = ImPlot.PlotToPixels(xMin, sepY);
+            var rightPx = ImPlot.PlotToPixels(xMax, sepY);
             drawList.AddLine(leftPx, rightPx, separatorColor);
         }
 
@@ -111,12 +146,12 @@ public sealed class MainWindow : Window, IDisposable
         var playerId = this.displayPlayerId != 0 ? this.displayPlayerId : this.tracker.LocalPlayerId;
         var actions = this.tracker.GetActions(playerId);
 
-        this.DrawActions(drawList, actions, iconSize, xMin, xMax);
+        this.DrawActions(drawList, actions, iconSize, xMin, xMax, rowPositions);
 
         ImPlot.EndPlot();
     }
 
-    private void DrawActions(ImDrawListPtr drawList, List<TrackedAction> actions, float iconSize, double xMin, double xMax)
+    private void DrawActions(ImDrawListPtr drawList, List<TrackedAction> actions, float iconSize, double xMin, double xMax, Dictionary<ActionType, double> rowPositions)
     {
         var halfIcon = iconSize * 0.5f;
 
@@ -125,10 +160,8 @@ public sealed class MainWindow : Window, IDisposable
             if (action.Timestamp < xMin || action.Timestamp > xMax)
                 continue;
 
-            if (!this.ShouldShow(action.ActionType))
+            if (!rowPositions.TryGetValue(action.ActionType, out var row))
                 continue;
-
-            var row = GetRow(action.ActionType);
             var center = ImPlot.PlotToPixels(action.Timestamp, row);
 
             // Draw cast bar behind the icon
@@ -186,12 +219,12 @@ public sealed class MainWindow : Window, IDisposable
         _ => true,
     };
 
-    private static double GetRow(ActionType type) => type switch
+    private static string GetRowLabel(ActionType type) => type switch
     {
-        ActionType.AutoAttack => 0,
-        ActionType.Gcd => 1,
-        ActionType.Ogcd => 2,
-        ActionType.Pet => 3,
-        _ => 1,
+        ActionType.AutoAttack => "Auto",
+        ActionType.Gcd => "GCD",
+        ActionType.Ogcd => "oGCD",
+        ActionType.Pet => "Pet",
+        _ => "?",
     };
 }
