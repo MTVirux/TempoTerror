@@ -7,17 +7,20 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using TempoTerror.Models;
+using TempoTerror.Services;
 
 public sealed class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration config;
     private readonly IDalamudPluginInterface pluginInterface;
+    private readonly ActionTracker tracker;
 
-    public ConfigWindow(Configuration config, IDalamudPluginInterface pluginInterface)
+    public ConfigWindow(Configuration config, IDalamudPluginInterface pluginInterface, ActionTracker tracker)
         : base("Tempo Terror Settings##ConfigWindow")
     {
         this.config = config;
         this.pluginInterface = pluginInterface;
+        this.tracker = tracker;
 
         this.SizeConstraints = new WindowSizeConstraints
         {
@@ -30,6 +33,62 @@ public sealed class ConfigWindow : Window, IDisposable
     public override void Draw()
     {
         var changed = false;
+
+        if (ImGui.CollapsingHeader("Player", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            var localId = this.tracker.LocalPlayerId;
+            var selectedId = this.config.SelectedPlayerId ?? localId;
+            var actors = this.tracker.KnownActors;
+            var currentLabel = actors.TryGetValue(selectedId, out var name) ? name : "Local Player";
+
+            if (ImGui.BeginCombo("Player", currentLabel))
+            {
+                var localName = actors.TryGetValue(localId, out var ln) ? ln : "Local Player";
+                if (ImGui.Selectable(localName, selectedId == localId))
+                {
+                    this.config.SelectedPlayerId = null;
+                    changed = true;
+                }
+
+                foreach (var kvp in actors)
+                {
+                    if (kvp.Key == localId)
+                        continue;
+
+                    if (ImGui.Selectable(kvp.Value, selectedId == kvp.Key))
+                    {
+                        this.config.SelectedPlayerId = kvp.Key;
+                        changed = true;
+                    }
+                }
+
+                ImGui.EndCombo();
+            }
+        }
+
+        if (ImGui.CollapsingHeader("Data Source", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            var mode = (int)this.config.DataSourceMode;
+            if (ImGui.Combo("Connection Mode", ref mode, "IPC (in-process)\0WebSocket\0"))
+            {
+                this.config.DataSourceMode = (Models.DataSourceMode)mode;
+                changed = true;
+            }
+
+            if (this.config.DataSourceMode == Models.DataSourceMode.WebSocket)
+            {
+                var url = this.config.WebSocketUrl;
+                if (ImGui.InputText("WebSocket URL", ref url, 256))
+                {
+                    this.config.WebSocketUrl = url;
+                    changed = true;
+                }
+            }
+
+            ImGui.TextColored(
+                new Vector4(0.7f, 0.7f, 0.7f, 1.0f),
+                "Changes take effect after plugin reload.");
+        }
 
         if (ImGui.CollapsingHeader("Timeline", ImGuiTreeNodeFlags.DefaultOpen))
         {
@@ -70,6 +129,29 @@ public sealed class ConfigWindow : Window, IDisposable
                 this.config.ShowGrid = showGrid;
                 changed = true;
             }
+
+            var showHGrid = this.config.ShowHorizontalGridLines;
+            if (ImGui.Checkbox("Show Horizontal Grid Lines", ref showHGrid))
+            {
+                this.config.ShowHorizontalGridLines = showHGrid;
+                changed = true;
+            }
+
+            var showRowLabels = this.config.ShowRowLabels;
+            if (ImGui.Checkbox("Show Row Labels", ref showRowLabels))
+            {
+                this.config.ShowRowLabels = showRowLabels;
+                changed = true;
+            }
+
+#if DEBUG
+            var showDebug = this.config.ShowDebugInfo;
+            if (ImGui.Checkbox("Show Debug Info", ref showDebug))
+            {
+                this.config.ShowDebugInfo = showDebug;
+                changed = true;
+            }
+#endif
         }
 
         if (ImGui.CollapsingHeader("Row Layout", ImGuiTreeNodeFlags.DefaultOpen))

@@ -4,6 +4,7 @@ using System;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using TempoTerror.Models;
 using TempoTerror.Services;
 
 public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
@@ -13,7 +14,7 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
     private readonly IFramework framework;
     private readonly WindowSystem windowSystem;
     private readonly Configuration config;
-    private readonly IinactSubscriber iinactSubscriber;
+    private readonly IDataSource dataSource;
     private readonly ActionTracker actionTracker;
     private readonly IconCache iconCache;
     private readonly Gui.MainWindow.MainWindow mainWindow;
@@ -42,14 +43,18 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         this.config = cfg;
 
         // Services
-        this.iinactSubscriber = new IinactSubscriber(pluginInterface, log);
-        this.actionTracker = new ActionTracker(objectTable, dataManager, log, this.iinactSubscriber);
+        this.dataSource = this.config.DataSourceMode switch
+        {
+            DataSourceMode.WebSocket => new WebSocketDataSource(this.config.WebSocketUrl, log),
+            _ => new IpcDataSource(pluginInterface, log),
+        };
+        this.actionTracker = new ActionTracker(objectTable, dataManager, log, this.dataSource);
         this.iconCache = new IconCache(textureProvider, dataManager);
 
         // Windows
         this.windowSystem = new WindowSystem("TempoTerror");
-        this.mainWindow = new Gui.MainWindow.MainWindow(this.config, this.actionTracker, this.iconCache);
-        this.configWindow = new Gui.ConfigWindow.ConfigWindow(this.config, pluginInterface);
+        this.configWindow = new Gui.ConfigWindow.ConfigWindow(this.config, pluginInterface, this.actionTracker);
+        this.mainWindow = new Gui.MainWindow.MainWindow(this.config, pluginInterface, this.actionTracker, this.iconCache, this.configWindow);
 
         this.windowSystem.AddWindow(this.mainWindow);
         this.windowSystem.AddWindow(this.configWindow);
@@ -67,7 +72,7 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         });
 
         // Connect to IINACT
-        this.iinactSubscriber.Connect();
+        this.dataSource.Connect();
 
         if (this.config.ShowOnStart)
             this.mainWindow.IsOpen = true;
@@ -86,7 +91,7 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         this.configWindow.Dispose();
 
         this.actionTracker.Dispose();
-        this.iinactSubscriber.Dispose();
+        this.dataSource.Dispose();
     }
 
     private void DrawUi() => this.windowSystem.Draw();
@@ -97,6 +102,10 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
 
     private void OnFrameworkUpdate(IFramework _)
     {
+        if (!this.dataSource.IsConnected)
+            this.dataSource.Connect();
+
+        this.actionTracker.ProcessPendingLines();
         this.actionTracker.Prune(this.config.DisplayTimeSeconds);
     }
 

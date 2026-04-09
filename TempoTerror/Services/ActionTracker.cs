@@ -12,12 +12,14 @@ using TempoTerror.Models;
 public sealed class ActionTracker : IDisposable
 {
     private readonly IObjectTable objectTable;
-    private readonly IDataManager dataManager;
     private readonly IPluginLog log;
-    private readonly IinactSubscriber subscriber;
+    private readonly IDataSource subscriber;
     private readonly ConcurrentDictionary<uint, List<TrackedAction>> actionsByActor = new();
     private readonly ConcurrentDictionary<uint, string> knownActors = new();
+    private readonly ConcurrentQueue<string> pendingLines = new();
     private readonly Stopwatch stopwatch = Stopwatch.StartNew();
+    private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Action> actionSheet;
+    private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Item> itemSheet;
 
     public IReadOnlyDictionary<uint, string> KnownActors => this.knownActors;
 
@@ -25,14 +27,15 @@ public sealed class ActionTracker : IDisposable
         IObjectTable objectTable,
         IDataManager dataManager,
         IPluginLog log,
-        IinactSubscriber subscriber)
+        IDataSource subscriber)
     {
         this.objectTable = objectTable;
-        this.dataManager = dataManager;
         this.log = log;
         this.subscriber = subscriber;
+        this.actionSheet = dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>();
+        this.itemSheet = dataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>();
 
-        this.subscriber.OnLogLine += this.HandleLogLine;
+        this.subscriber.OnLogLine += this.EnqueueLogLine;
     }
 
     public double CurrentTime => this.stopwatch.Elapsed.TotalSeconds;
@@ -65,7 +68,21 @@ public sealed class ActionTracker : IDisposable
 
     public void Dispose()
     {
-        this.subscriber.OnLogLine -= this.HandleLogLine;
+        this.subscriber.OnLogLine -= this.EnqueueLogLine;
+    }
+
+    private void EnqueueLogLine(string line)
+    {
+        this.pendingLines.Enqueue(line);
+    }
+
+    public void ProcessPendingLines()
+    {
+        var budget = 50;
+        while (budget-- > 0 && this.pendingLines.TryDequeue(out var line))
+        {
+            this.HandleLogLine(line);
+        }
     }
 
     private void HandleLogLine(string line)
@@ -80,6 +97,8 @@ public sealed class ActionTracker : IDisposable
                 break;
             case 21:
             case 22:
+                this.log.Information("[HandleLogLine] Type {Type}: {Source} ({SourceId:X}) -> {Action} (id={ActionId})",
+                    parsed.Type, parsed.SourceName, parsed.SourceId, parsed.ActionName, parsed.ActionId);
                 this.HandleAbility(parsed);
                 break;
             case 23:
@@ -97,6 +116,8 @@ public sealed class ActionTracker : IDisposable
         action.CastTime = parsed.CastTime;
         action.IsCasting = true;
         this.AddAction(action);
+        this.log.Verbose("[StartsCasting] {Source} ({SourceId:X}) -> {Action} ({ActionId}) cast={CastTime:F2}s type={Type}",
+            parsed.SourceName, parsed.SourceId, parsed.ActionName, parsed.ActionId, parsed.CastTime, action.ActionType);
     }
 
     private void HandleAbility(ParsedLogLine parsed)
@@ -115,14 +136,20 @@ public sealed class ActionTracker : IDisposable
             {
                 casting.IsCasting = false;
                 casting.ResolvedAt = DateTime.UtcNow;
+                this.log.Information("[AbilityResolved] {Source} ({SourceId:X}) -> {Action} (id={ActionId}) type={Type}",
+                    parsed.SourceName, parsed.SourceId, parsed.ActionName, parsed.ActionId, casting.ActionType);
                 return;
             }
         }
 
         // Instant ability — no prior cast.
         var action = this.CreateTrackedAction(parsed);
-        if (action is not null)
-            this.AddAction(action);
+        if (action is null)
+            return;
+
+        this.AddAction(action);
+        this.log.Information("[Ability] {Source} ({SourceId:X}) -> {Action} (id={ActionId}) type={Type}",
+            parsed.SourceName, parsed.SourceId, parsed.ActionName, parsed.ActionId, action.ActionType);
     }
 
     private void HandleCancelAbility(ParsedLogLine parsed)
@@ -142,20 +169,38 @@ public sealed class ActionTracker : IDisposable
                 casting.IsCasting = false;
                 casting.WasCancelled = true;
                 casting.ResolvedAt = DateTime.UtcNow;
+                this.log.Verbose("[CancelAbility] {Source} ({SourceId:X}) -> {Action} ({ActionId}) type={Type}",
+                    parsed.SourceName, parsed.SourceId, parsed.ActionName, parsed.ActionId, casting.ActionType);
             }
         }
     }
 
     private TrackedAction? CreateTrackedAction(ParsedLogLine parsed)
     {
-        var actionRow = this.dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()?.GetRowOrDefault(parsed.ActionId);
-        if (actionRow is null)
+        // Item usage: action IDs with the 0x2000000 bit are encoded item IDs.
+        if (parsed.ActionId >= 0x2000000)
+            return this.CreateItemAction(parsed);
+
+        var actionRow = this.actionSheet.GetRowOrDefault(parsed.ActionId);
+
+        ActionType actionType;
+        ushort iconId;
+
+        if (actionRow is not null)
+        {
+            actionType = ClassifyAction(actionRow.Value, parsed.SourceId);
+            iconId = (ushort)actionRow.Value.Icon;
+        }
+        else
+        {
+            this.log.Warning("[CreateTrackedAction] Lumina lookup failed for actionId={ActionId} ({ActionName}) from {Source} ({SourceId:X})",
+                parsed.ActionId, parsed.ActionName, parsed.SourceName, parsed.SourceId);
             return null;
+        }
 
-        var actionType = ClassifyAction(actionRow.Value, parsed.SourceId);
-        var iconId = (ushort)actionRow.Value.Icon;
-
-        this.knownActors.TryAdd(parsed.SourceId, parsed.SourceName);
+        // Don't add pet entities to the known actors list.
+        if (actionType != ActionType.Pet)
+            this.knownActors.TryAdd(parsed.SourceId, parsed.SourceName);
 
         return new TrackedAction
         {
@@ -169,27 +214,73 @@ public sealed class ActionTracker : IDisposable
         };
     }
 
+    private TrackedAction? CreateItemAction(ParsedLogLine parsed)
+    {
+        var itemId = parsed.ActionId - 0x2000000;
+
+        // HQ items have 1,000,000 added to their ID.
+        if (itemId >= 1_000_000)
+            itemId -= 1_000_000;
+
+        var itemRow = this.itemSheet.GetRowOrDefault(itemId);
+        var iconId = itemRow is not null ? (ushort)itemRow.Value.Icon : (ushort)0;
+        var itemName = itemRow is not null ? itemRow.Value.Name.ToString() : parsed.ActionName;
+
+        this.log.Information("[ItemAction] {Source} ({SourceId:X}) used item {Name} (itemId={ItemId} icon={Icon})",
+            parsed.SourceName, parsed.SourceId, itemName, itemId, iconId);
+
+        this.knownActors.TryAdd(parsed.SourceId, parsed.SourceName);
+
+        return new TrackedAction
+        {
+            ActionId = parsed.ActionId,
+            ActionName = itemName,
+            SourceId = parsed.SourceId,
+            SourceName = parsed.SourceName,
+            Timestamp = this.CurrentTime,
+            ActionType = ActionType.Ogcd,
+            IconId = iconId,
+        };
+    }
+
     private ActionType ClassifyAction(Lumina.Excel.Sheets.Action action, uint sourceId)
     {
-        // CooldownGroup 58 = GCD
-        if (action.CooldownGroup == 58)
-            return ActionType.Gcd;
+        var cooldownGroup = action.CooldownGroup;
+        var category = action.ActionCategory.RowId;
 
-        // CooldownGroup 0 + ActionCategory 1 = Auto-attack
-        if (action.CooldownGroup == 0 && action.ActionCategory.RowId == 1)
-            return ActionType.AutoAttack;
+        this.log.Information("[Classify] {Name} (id={RowId}) CooldownGroup={CdGroup} ActionCategory={Category} source={SourceId:X}",
+            action.Name.ToString(), action.RowId, cooldownGroup, category, sourceId);
 
-        // Pet detection: source is not the local player and not a known party member.
-        // This is a heuristic; pets have owner IDs that differ from the party list.
-        if (sourceId != this.LocalPlayerId && action.ActionCategory.RowId == 11)
+        // Pet detection: entities with IDs in the 0x40000000 range are pets/companions/summons.
+        if (sourceId != this.LocalPlayerId && (sourceId & 0x40000000) != 0)
             return ActionType.Pet;
 
+        // CooldownGroup 58 = GCD, or Weaponskill (3) / Spell (2) always trigger GCD
+        if (cooldownGroup == 58 || category is 2 or 3)
+            return ActionType.Gcd;
+
+        // Auto-attack: well-known auto-attack action IDs.
+        if (action.RowId is 7 or 8)
+            return ActionType.AutoAttack;
+
+        if (cooldownGroup == 0 && category == 1)
+            return ActionType.AutoAttack;
+
+        // Everything else (Ability = category 4, etc.) = oGCD
         return ActionType.Ogcd;
     }
 
     private void AddAction(TrackedAction action)
     {
-        var list = this.GetOrCreateList(action.SourceId);
+        // Store pet actions under the pet's owner so they appear on the correct player's timeline.
+        var storeId = action.SourceId;
+        if (action.ActionType == ActionType.Pet)
+        {
+            var ownerId = this.GetPetOwnerId(action.SourceId);
+            storeId = ownerId != 0 ? ownerId : action.SourceId;
+        }
+
+        var list = this.GetOrCreateList(storeId);
 
         lock (list)
         {
@@ -203,5 +294,16 @@ public sealed class ActionTracker : IDisposable
     private List<TrackedAction> GetOrCreateList(uint actorId)
     {
         return this.actionsByActor.GetOrAdd(actorId, _ => new List<TrackedAction>());
+    }
+
+    private uint GetPetOwnerId(uint petEntityId)
+    {
+        foreach (var obj in this.objectTable)
+        {
+            if (obj.EntityId == petEntityId)
+                return obj.OwnerId;
+        }
+
+        return 0;
     }
 }
