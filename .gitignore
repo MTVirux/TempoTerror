@@ -1,0 +1,8 @@
+bin/
+obj/
+.vs/
+private/
+scripts/
+.github/*
+!.github/workflows
+CLAUDE.md
