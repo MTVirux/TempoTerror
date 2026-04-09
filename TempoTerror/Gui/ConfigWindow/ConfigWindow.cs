@@ -144,6 +144,40 @@ public sealed class ConfigWindow : Window, IDisposable
                 changed = true;
             }
 
+            var showTitleBar = this.config.ShowTitleBar;
+            if (ImGui.Checkbox("Show Title Bar", ref showTitleBar))
+            {
+                this.config.ShowTitleBar = showTitleBar;
+                changed = true;
+            }
+
+            var disableEsc = this.config.DisableEscClose;
+            if (ImGui.Checkbox("Ignore ESC Key", ref disableEsc))
+            {
+                this.config.DisableEscClose = disableEsc;
+                changed = true;
+            }
+
+            var hideOoc = this.config.HideOutOfCombat;
+            if (ImGui.Checkbox("Hide Out of Combat", ref hideOoc))
+            {
+                this.config.HideOutOfCombat = hideOoc;
+                changed = true;
+            }
+
+            if (hideOoc)
+            {
+                ImGui.Indent();
+                var delay = this.config.HideOutOfCombatDelay;
+                if (ImGui.SliderFloat("Hide Delay (s)", ref delay, 0f, 30f))
+                {
+                    this.config.HideOutOfCombatDelay = delay;
+                    changed = true;
+                }
+
+                ImGui.Unindent();
+            }
+
 #if DEBUG
             var showDebug = this.config.ShowDebugInfo;
             if (ImGui.Checkbox("Show Debug Info", ref showDebug))

@@ -44,6 +44,14 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool PinConfigWindow { get; set; }
 
+    public bool DisableEscClose { get; set; } = true;
+
+    public bool ShowTitleBar { get; set; }
+
+    public bool HideOutOfCombat { get; set; }
+
+    public float HideOutOfCombatDelay { get; set; } = 3.0f;
+
     public bool ShowOnStart { get; set; } = true;
 
     public uint? SelectedPlayerId { get; set; }

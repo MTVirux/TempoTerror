@@ -1,6 +1,7 @@
 namespace TempoTerror.Core;
 
 using System;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -17,8 +18,12 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
     private readonly IDataSource dataSource;
     private readonly ActionTracker actionTracker;
     private readonly IconCache iconCache;
+    private readonly ICondition condition;
     private readonly Gui.MainWindow.MainWindow mainWindow;
     private readonly Gui.ConfigWindow.ConfigWindow configWindow;
+    private bool wasInCombat;
+    private DateTime combatEndTime;
+    private bool autoHidden;
 
     public TempoTerrorPlugin(
         IDalamudPluginInterface pluginInterface,
@@ -27,11 +32,13 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         IDataManager dataManager,
         ITextureProvider textureProvider,
         IPluginLog log,
-        IFramework framework)
+        IFramework framework,
+        ICondition condition)
     {
         this.pluginInterface = pluginInterface;
         this.commandManager = commandManager;
         this.framework = framework;
+        this.condition = condition;
 
         var cfg = this.pluginInterface.GetPluginConfig() as Configuration;
         if (cfg is null)
@@ -66,10 +73,13 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         this.framework.Update += this.OnFrameworkUpdate;
 
         // Command
-        this.commandManager.AddHandler(ConfigStatic.CommandName, new Dalamud.Game.Command.CommandInfo(this.OnCommand)
+        var commandInfo = new Dalamud.Game.Command.CommandInfo(this.OnCommand)
         {
             HelpMessage = "Toggle the TempoTerror timeline window.",
-        });
+        };
+        this.commandManager.AddHandler(ConfigStatic.CommandName, commandInfo);
+        this.commandManager.AddHandler(ConfigStatic.CommandAlias1, commandInfo);
+        this.commandManager.AddHandler(ConfigStatic.CommandAlias2, commandInfo);
 
         // Connect to IINACT
         this.dataSource.Connect();
@@ -81,6 +91,8 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
     public void Dispose()
     {
         this.commandManager.RemoveHandler(ConfigStatic.CommandName);
+        this.commandManager.RemoveHandler(ConfigStatic.CommandAlias1);
+        this.commandManager.RemoveHandler(ConfigStatic.CommandAlias2);
         this.framework.Update -= this.OnFrameworkUpdate;
         this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
         this.pluginInterface.UiBuilder.OpenMainUi -= this.OpenMainUi;
@@ -107,6 +119,48 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
 
         this.actionTracker.ProcessPendingLines();
         this.actionTracker.Prune(this.config.DisplayTimeSeconds);
+        this.UpdateCombatVisibility();
+    }
+
+    private void UpdateCombatVisibility()
+    {
+        if (!this.config.HideOutOfCombat)
+        {
+            if (this.autoHidden)
+            {
+                this.mainWindow.IsOpen = true;
+                this.autoHidden = false;
+            }
+
+            return;
+        }
+
+        var inCombat = this.condition[ConditionFlag.InCombat];
+
+        if (inCombat)
+        {
+            if (this.autoHidden)
+            {
+                this.mainWindow.IsOpen = true;
+                this.autoHidden = false;
+            }
+
+            this.wasInCombat = true;
+        }
+        else
+        {
+            if (this.wasInCombat)
+            {
+                this.combatEndTime = DateTime.UtcNow;
+                this.wasInCombat = false;
+            }
+
+            if (this.mainWindow.IsOpen && (DateTime.UtcNow - this.combatEndTime).TotalSeconds >= this.config.HideOutOfCombatDelay)
+            {
+                this.mainWindow.IsOpen = false;
+                this.autoHidden = true;
+            }
+        }
     }
 
     private void OnCommand(string command, string args)

@@ -44,7 +44,7 @@ public sealed class MainWindow : Window, IDisposable
         };
         this.Size = new Vector2(800, 250);
         this.SizeCondition = ImGuiCond.FirstUseEver;
-        this.Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoBackground;
+        this.Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground;
 
         this.lockButton = new TitleBarButton
         {
@@ -77,6 +77,13 @@ public sealed class MainWindow : Window, IDisposable
             this.Flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
         else
             this.Flags &= ~(ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize);
+
+        if (this.config.ShowTitleBar)
+            this.Flags &= ~ImGuiWindowFlags.NoTitleBar;
+        else
+            this.Flags |= ImGuiWindowFlags.NoTitleBar;
+
+        this.RespectCloseHotkey = !this.config.DisableEscClose;
     }
 
     public override void Draw()

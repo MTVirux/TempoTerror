@@ -13,4 +13,8 @@ public static class ConfigStatic
     public const string SubscriberName = "TempoTerror";
 
     public const string CommandName = "/tempo";
+
+    public const string CommandAlias1 = "/tempoterror";
+
+    public const string CommandAlias2 = "/tt";
 }
