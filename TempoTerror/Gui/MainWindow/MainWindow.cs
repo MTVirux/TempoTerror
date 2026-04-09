@@ -266,8 +266,34 @@ public sealed class MainWindow : Window, IDisposable
                 this.pluginInterface.SavePluginConfig(this.config);
             }
 
+            if (ImGui.BeginMenu("Players"))
+            {
+                var localId = this.tracker.LocalPlayerId;
+                var isLocalSelected = this.config.SelectedPlayerId is null || this.config.SelectedPlayerId == localId;
+
+                foreach (var (id, name) in this.tracker.KnownActors)
+                {
+                    var selected = id == localId ? isLocalSelected : this.config.SelectedPlayerId == id;
+                    if (ImGui.MenuItem(name, string.Empty, selected))
+                    {
+                        this.config.SelectedPlayerId = id == localId ? null : id;
+                        this.pluginInterface.SavePluginConfig(this.config);
+                    }
+                }
+
+                if (this.tracker.KnownActors.Count == 0)
+                    ImGui.MenuItem("No players available", false);
+
+                ImGui.EndMenu();
+            }
+
             if (ImGui.MenuItem("Settings"))
                 this.configWindow.IsOpen = !this.configWindow.IsOpen;
+
+            ImGui.Separator();
+
+            if (ImGui.MenuItem("Close"))
+                this.IsOpen = false;
 
             ImGui.EndPopup();
         }
