@@ -1,7 +1,7 @@
 [
 {
   "Author": "MTVirux",
-  "Name": "Tempo Terror",
+  "Name": "TempoTerror",
   "Punchline": "Scrolling skill timeline overlay powered by IINACT.",
   "Description": "Real-time scrolling timeline showing skill usage with action icons, cast bars, and per-player tracking. Requires IINACT for network log data.\n\nDM @mtvirux on discord for assistance or bug reports.",
   "Tags": [
