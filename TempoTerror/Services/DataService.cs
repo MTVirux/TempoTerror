@@ -6,7 +6,7 @@ using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Services;
 using Newtonsoft.Json.Linq;
 
-public sealed class IinactSubscriber : IDisposable
+public sealed class DataService : IDisposable
 {
     private readonly IPluginLog log;
     private readonly ICallGateSubscriber<string, bool> createSubscriber;
@@ -18,7 +18,7 @@ public sealed class IinactSubscriber : IDisposable
 
     public bool IsConnected => this.subscribed;
 
-    public IinactSubscriber(IDalamudPluginInterface pluginInterface, IPluginLog log)
+    public DataService(IDalamudPluginInterface pluginInterface, IPluginLog log)
     {
         this.log = log;
 
@@ -37,6 +37,16 @@ public sealed class IinactSubscriber : IDisposable
 
         try
         {
+            // Clean up any stale subscriber from a previous session (e.g. plugin reload).
+            try
+            {
+                this.unsubscribe.InvokeFunc(ConfigStatic.SubscriberName);
+            }
+            catch
+            {
+                // Ignore — no prior subscriber existed.
+            }
+
             this.createSubscriber.InvokeFunc(ConfigStatic.SubscriberName);
             this.subscribed = true;
 
@@ -47,11 +57,11 @@ public sealed class IinactSubscriber : IDisposable
             };
             this.provider.InvokeFunc(subscribeMsg);
 
-            this.log.Information("IINACT subscription active.");
+            this.log.Information("[TempoTerror] IINACT subscription active.");
         }
         catch (Exception ex)
         {
-            this.log.Warning(ex, "Failed to connect to IINACT. Is IINACT running?");
+            this.log.Warning(ex, "[TempoTerror] Failed to connect to IINACT. Is IINACT running?");
             this.subscribed = false;
         }
     }
@@ -68,7 +78,7 @@ public sealed class IinactSubscriber : IDisposable
             }
             catch (Exception ex)
             {
-                this.log.Warning(ex, "Failed to unsubscribe from IINACT.");
+                this.log.Warning(ex, "[TempoTerror] Failed to unsubscribe from IINACT.");
             }
 
             this.subscribed = false;
@@ -77,12 +87,12 @@ public sealed class IinactSubscriber : IDisposable
 
     private void OnIpcMessage(JObject data)
     {
-        var msgType = data["msgtype"]?.ToString();
-        if (msgType != "N" && msgType != "LogLine")
+        var msgType = data["type"]?.ToString();
+        if (msgType != "LogLine")
             return;
 
-        var msg = data["msg"]?.ToString();
-        if (msg is not null)
-            this.OnLogLine?.Invoke(msg);
+        var rawLine = data["rawLine"]?.ToString();
+        if (rawLine is not null)
+            this.OnLogLine?.Invoke(rawLine);
     }
 }
