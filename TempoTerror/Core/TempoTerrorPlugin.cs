@@ -56,6 +56,7 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
 
         // Events
         this.pluginInterface.UiBuilder.Draw += this.DrawUi;
+        this.pluginInterface.UiBuilder.OpenMainUi += this.OpenMainUi;
         this.pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
         this.framework.Update += this.OnFrameworkUpdate;
 
@@ -77,6 +78,7 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         this.commandManager.RemoveHandler(ConfigStatic.CommandName);
         this.framework.Update -= this.OnFrameworkUpdate;
         this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
+        this.pluginInterface.UiBuilder.OpenMainUi -= this.OpenMainUi;
         this.pluginInterface.UiBuilder.Draw -= this.DrawUi;
 
         this.windowSystem.RemoveAllWindows();
@@ -88,6 +90,8 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
     }
 
     private void DrawUi() => this.windowSystem.Draw();
+
+    private void OpenMainUi() => this.mainWindow.IsOpen = true;
 
     private void OpenConfigUi() => this.configWindow.IsOpen = true;
 
