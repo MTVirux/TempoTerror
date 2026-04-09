@@ -29,7 +29,7 @@ public sealed class MainWindow : Window, IDisposable
     private double axisYMax;
 
     public MainWindow(Configuration config, IDalamudPluginInterface pluginInterface, ActionTracker tracker, IconCache iconCache, Window configWindow)
-        : base("Tempo Terror##MainWindow")
+        : base("TempoTerror##MainWindow")
     {
         this.config = config;
         this.pluginInterface = pluginInterface;

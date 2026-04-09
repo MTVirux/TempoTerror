@@ -16,7 +16,7 @@ public sealed class ConfigWindow : Window, IDisposable
     private readonly ActionTracker tracker;
 
     public ConfigWindow(Configuration config, IDalamudPluginInterface pluginInterface, ActionTracker tracker)
-        : base("Tempo Terror Settings##ConfigWindow")
+        : base("TempoTerror Settings##ConfigWindow")
     {
         this.config = config;
         this.pluginInterface = pluginInterface;

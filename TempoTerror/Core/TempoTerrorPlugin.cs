@@ -68,7 +68,7 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         // Command
         this.commandManager.AddHandler(ConfigStatic.CommandName, new Dalamud.Game.Command.CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Toggle the Tempo Terror timeline window.",
+            HelpMessage = "Toggle the TempoTerror timeline window.",
         });
 
         // Connect to IINACT
