@@ -1,0 +1,21 @@
+{
+  "Author": "MTVirux",
+  "Name": "Tempo Terror",
+  "Punchline": "Scrolling skill timeline overlay powered by IINACT.",
+  "Description": "Real-time scrolling timeline showing skill usage with action icons, cast bars, and per-player tracking. Requires IINACT for network log data.\n\nDM @mtvirux on discord for assistance or bug reports.",
+  "Tags": [
+    "Terror",
+    "Timeline",
+    "Skills",
+    "Actions",
+    "IINACT"
+  ],
+  "LastUpdate": 1618608322,
+  "InternalName": "TempoTerror",
+  "AssemblyVersion": "0.0.0.1",
+  "RepoUrl": "https://github.com/MTVirux/TempoTerror",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 13,
+  "ImageUrls": null,
+  "IconUrl": null
+}
