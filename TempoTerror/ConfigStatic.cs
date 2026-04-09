@@ -6,7 +6,7 @@ public static class ConfigStatic
 
     public const int MaxActionsPerActor = 200;
 
-    public const float MinDisplayTime = 5f;
+    public const float MinDisplayTime = 0.5f;
 
     public const float MaxDisplayTime = 30f;
 
