@@ -60,7 +60,7 @@ public sealed class Configuration : IPluginConfiguration
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public Dictionary<ActionType, float> RowHeights { get; set; } = new()
     {
-        { ActionType.AutoAttack, 1.0f },
+        { ActionType.AutoAttack, 0.5f },
         { ActionType.Gcd, 1.0f },
         { ActionType.Ogcd, 0.71f },
         { ActionType.Pet, 0.8f },
