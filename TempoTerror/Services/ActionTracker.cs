@@ -20,6 +20,7 @@ public sealed class ActionTracker : IDisposable
     private readonly Stopwatch stopwatch = Stopwatch.StartNew();
     private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Action> actionSheet;
     private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Item> itemSheet;
+    private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Mount> mountSheet;
 
     public IReadOnlyDictionary<uint, string> KnownActors => this.knownActors;
 
@@ -34,6 +35,7 @@ public sealed class ActionTracker : IDisposable
         this.subscriber = subscriber;
         this.actionSheet = dataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>();
         this.itemSheet = dataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>();
+        this.mountSheet = dataManager.GetExcelSheet<Lumina.Excel.Sheets.Mount>();
 
         this.subscriber.OnLogLine += this.EnqueueLogLine;
     }
@@ -177,6 +179,10 @@ public sealed class ActionTracker : IDisposable
 
     private TrackedAction? CreateTrackedAction(ParsedLogLine parsed)
     {
+        // Mount usage: action IDs in the 0xD000000 range are encoded mount IDs.
+        if (parsed.ActionId >= 0xD000000 && parsed.ActionId < 0xE000000)
+            return this.CreateMountAction(parsed);
+
         // Item usage: action IDs with the 0x2000000 bit are encoded item IDs.
         if (parsed.ActionId >= 0x2000000)
             return this.CreateItemAction(parsed);
@@ -193,7 +199,9 @@ public sealed class ActionTracker : IDisposable
                 return null;
 
             actionType = classified.Value;
-            iconId = (ushort)actionRow.Value.Icon;
+            iconId = actionType == ActionType.AutoAttack ? (ushort)101
+                : parsed.ActionId == 4 ? (ushort)58
+                : (ushort)actionRow.Value.Icon;
         }
         else
         {
@@ -214,6 +222,30 @@ public sealed class ActionTracker : IDisposable
             SourceName = parsed.SourceName,
             Timestamp = this.CurrentTime,
             ActionType = actionType,
+            IconId = iconId,
+        };
+    }
+
+    private TrackedAction? CreateMountAction(ParsedLogLine parsed)
+    {
+        var mountId = parsed.ActionId - 0xD000000;
+        var mountRow = this.mountSheet.GetRowOrDefault(mountId);
+        var iconId = mountRow is not null ? (ushort)mountRow.Value.Icon : (ushort)0;
+        var mountName = mountRow is not null ? mountRow.Value.Singular.ToString() : parsed.ActionName;
+
+        this.log.Information("[MountAction] {Source} ({SourceId:X}) used mount {Name} (mountId={MountId} icon={Icon})",
+            parsed.SourceName, parsed.SourceId, mountName, mountId, iconId);
+
+        this.knownActors.TryAdd(parsed.SourceId, parsed.SourceName);
+
+        return new TrackedAction
+        {
+            ActionId = parsed.ActionId,
+            ActionName = mountName,
+            SourceId = parsed.SourceId,
+            SourceName = parsed.SourceName,
+            Timestamp = this.CurrentTime,
+            ActionType = ActionType.Ogcd,
             IconId = iconId,
         };
     }
