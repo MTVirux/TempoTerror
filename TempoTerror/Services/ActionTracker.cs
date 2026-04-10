@@ -188,7 +188,11 @@ public sealed class ActionTracker : IDisposable
 
         if (actionRow is not null)
         {
-            actionType = ClassifyAction(actionRow.Value, parsed.SourceId);
+            var classified = ClassifyAction(actionRow.Value, parsed.SourceId);
+            if (classified is null)
+                return null;
+
+            actionType = classified.Value;
             iconId = (ushort)actionRow.Value.Icon;
         }
         else
@@ -243,7 +247,7 @@ public sealed class ActionTracker : IDisposable
         };
     }
 
-    private ActionType ClassifyAction(Lumina.Excel.Sheets.Action action, uint sourceId)
+    private ActionType? ClassifyAction(Lumina.Excel.Sheets.Action action, uint sourceId)
     {
         var cooldownGroup = action.CooldownGroup;
         var category = action.ActionCategory.RowId;
@@ -251,9 +255,17 @@ public sealed class ActionTracker : IDisposable
         this.log.Information("[Classify] {Name} (id={RowId}) CooldownGroup={CdGroup} ActionCategory={Category} source={SourceId:X}",
             action.Name.ToString(), action.RowId, cooldownGroup, category, sourceId);
 
-        // Pet detection: entities with IDs in the 0x40000000 range are pets/companions/summons.
+        // Non-player entities in the 0x40000000 range are BattleNpcs (pets AND enemies).
+        // Only classify as pet if the entity actually has an owner; otherwise it's an enemy.
         if (sourceId != this.LocalPlayerId && (sourceId & 0x40000000) != 0)
-            return ActionType.Pet;
+        {
+            var ownerId = this.GetPetOwnerId(sourceId);
+            if (ownerId != 0)
+                return ActionType.Pet;
+
+            // No owner = enemy NPC — skip entirely.
+            return null;
+        }
 
         // CooldownGroup 58 = GCD, or Weaponskill (3) / Spell (2) always trigger GCD
         if (cooldownGroup == 58 || category is 2 or 3)
