@@ -17,6 +17,7 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
     private readonly IDataSource dataSource;
     private readonly ActionTracker actionTracker;
     private readonly IconCache iconCache;
+    private readonly IClientState clientState;
     private readonly ICondition condition;
     private readonly Gui.MainWindow.MainWindow mainWindow;
     private readonly Gui.ConfigWindow.ConfigWindow configWindow;
@@ -32,11 +33,13 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         ITextureProvider textureProvider,
         IPluginLog log,
         IFramework framework,
+        IClientState clientState,
         ICondition condition)
     {
         this.pluginInterface = pluginInterface;
         this.commandManager = commandManager;
         this.framework = framework;
+        this.clientState = clientState;
         this.condition = condition;
 
         var cfg = this.pluginInterface.GetPluginConfig() as Configuration;
@@ -101,7 +104,13 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
         this.dataSource.Dispose();
     }
 
-    private void DrawUi() => this.windowSystem.Draw();
+    private void DrawUi()
+    {
+        if (!this.clientState.IsLoggedIn)
+            return;
+
+        this.windowSystem.Draw();
+    }
 
     private void OpenMainUi() => this.mainWindow.IsOpen = true;
 
