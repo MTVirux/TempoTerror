@@ -1,30 +1,30 @@
 [
-{
-  "Author": "MTVirux",
-  "Name": "TempoTerror",
-  "Punchline": "Scrolling skill timeline overlay powered by IINACT.",
-  "Description": "Real-time scrolling timeline showing skill usage with action icons, cast bars, and per-player tracking. Requires IINACT for network log data.\n\nDM @mtvirux on discord for assistance or bug reports.",
-  "Tags": [
-    "Terror",
-    "Timeline",
-    "Skills",
-    "Actions",
-    "IINACT"
-  ],
-  "InternalName": "TempoTerror",
-  "AssemblyVersion": "1.1.0.0",
-  "TestingAssemblyVersion": "1.1.0.2",
-  "RepoUrl": "https://github.com/MTVirux/TempoTerror",
-  "ApplicableVersion": "any",
-  "DalamudApiLevel": 15,
-  "TestingDalamudApiLevel": 15,
-  "IsHide": "False",
-  "IsTestingExclusive": "False",
-  "DownloadCount": 0,
-  "LastUpdate": 1777677624,
-  "DownloadLinkInstall": "https://github.com/MTVirux/TempoTerror/releases/download/1.1.0.0/TempoTerror.zip",
-  "DownloadLinkUpdate": "https://github.com/MTVirux/TempoTerror/releases/download/1.1.0.0/TempoTerror.zip",
-  "DownloadLinkTesting": "https://github.com/MTVirux/TempoTerror/releases/download/1.1.0.0/TempoTerror.zip",
-  "IconUrl": "https://raw.githubusercontent.com/MTVirux/TempoTerror/main/images/icon.png"
-}
+  {
+    "Author": "MTVirux",
+    "Name": "TempoTerror",
+    "Punchline": "Scrolling skill timeline overlay powered by IINACT.",
+    "Description": "Real-time scrolling timeline showing skill usage with action icons, cast bars, and per-player tracking. Requires IINACT for network log data.\n\nDM @mtvirux on discord for assistance or bug reports.",
+    "Tags": [
+      "Terror",
+      "Timeline",
+      "Skills",
+      "Actions",
+      "IINACT"
+    ],
+    "InternalName": "TempoTerror",
+    "AssemblyVersion": "1.1.0.0",
+    "TestingAssemblyVersion": "1.1.0.2",
+    "RepoUrl": "https://github.com/MTVirux/TempoTerror",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "TestingDalamudApiLevel": 15,
+    "IsHide": "False",
+    "IsTestingExclusive": "False",
+    "DownloadCount": 0,
+    "LastUpdate": 1777677741,
+    "DownloadLinkInstall": "https://github.com/MTVirux/TempoTerror/releases/download/1.1.0.0/TempoTerror.zip",
+    "DownloadLinkUpdate": "https://github.com/MTVirux/TempoTerror/releases/download/1.1.0.0/TempoTerror.zip",
+    "DownloadLinkTesting": "https://github.com/MTVirux/TempoTerror/releases/download/testing_1.1.0.2/TempoTerror.zip",
+    "IconUrl": "https://raw.githubusercontent.com/MTVirux/TempoTerror/main/images/icon.png"
+  }
 ]
