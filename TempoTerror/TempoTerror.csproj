@@ -3,7 +3,7 @@
     <AssemblyName>TempoTerror</AssemblyName>
     <Authors>MTVirux</Authors>
     <Description>Scrolling skill timeline overlay for FFXIV, powered by IINACT.</Description>
-    <Version>1.1.0.2</Version>
+    <Version>1.1.0.3</Version>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
   </PropertyGroup>
