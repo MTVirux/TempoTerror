@@ -22,7 +22,7 @@ public sealed class TempoTerrorPlugin : IDalamudPlugin, IDisposable
     private readonly Gui.MainWindow.MainWindow mainWindow;
     private readonly Gui.ConfigWindow.ConfigWindow configWindow;
     private bool wasInCombat;
-    private DateTime combatEndTime;
+    private DateTime combatEndTime = DateTime.UtcNow;
     private bool autoHidden;
 
     public TempoTerrorPlugin(
