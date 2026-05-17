@@ -6,3 +6,4 @@ scripts/
 .github/*
 !.github/workflows
 CLAUDE.md
+.claude/*
